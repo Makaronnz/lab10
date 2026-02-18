@@ -6,3 +6,4 @@ azure-storage-blob
 gunicorn
 werkzeug
 pyodbc
+flask-login
