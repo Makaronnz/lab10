@@ -46,9 +46,21 @@
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav ms-auto">
+                    {% if current_user.is_authenticated %}
                     <li class="nav-item">
-                        <a class="nav-link active" href="/">Home</a>
+                        <span class="nav-link text-light">Welcome, {{ current_user.username }}</span>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('logout') }}">Logout</a>
+                    </li>
+                    {% else %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('login') }}">Login</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('register') }}">Register</a>
+                    </li>
+                    {% endif %}
                 </ul>
             </div>
         </div>
@@ -71,11 +83,13 @@
             </div>
         </div>
 
+        {% if current_user.is_authenticated %}
         <div class="d-grid gap-2 d-md-flex justify-content-md-end mb-4">
             <a href="/add" class="btn btn-success btn-lg shadow-sm">
                 <i class="fas fa-plus me-2"></i>Add New Book
             </a>
         </div>
+        {% endif %}
 
         {% if books %}
         <div class="row row-cols-1 row-cols-md-3 g-4">
@@ -93,6 +107,7 @@
                         <h5 class="card-title fw-bold text-primary">{{ book.title }}</h5>
                         <p class="card-text text-secondary">by {{ book.author }}</p>
                     </div>
+                    {% if current_user.is_authenticated %}
                     <div class="card-footer bg-white border-top-0 d-flex justify-content-between">
                         <a href="/edit/{{ book.id }}" class="btn btn-outline-warning btn-sm"><i class="fas fa-edit"></i>
                             Edit</a>
@@ -102,6 +117,7 @@
                                 Delete</button>
                         </form>
                     </div>
+                    {% endif %}
                 </div>
             </div>
             {% endfor %}
