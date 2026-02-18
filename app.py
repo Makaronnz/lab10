@@ -1,5 +1,5 @@
 import os
-from flask import Flask, render_template, request, redirect, url_for, flash
+from flask import Flask, render_template, request, redirect, url_for, flash, abort
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -24,6 +24,7 @@ class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(100), unique=True, nullable=False)
     password_hash = db.Column(db.String(200), nullable=False)
+    books = db.relationship('Book', backref='owner', lazy=True)
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -36,6 +37,7 @@ class Book(db.Model):
     title = db.Column(db.String(100), nullable=False)
     author = db.Column(db.String(100), nullable=False)
     cover_url = db.Column(db.String(500))
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -47,12 +49,18 @@ with app.app_context():
 # Routes
 @app.route('/')
 def index():
-    query = request.args.get('q')
-    if query:
-        books = Book.query.filter(Book.title.contains(query) | Book.author.contains(query)).all()
+    if current_user.is_authenticated:
+        query = request.args.get('q')
+        if query:
+            books = Book.query.filter_by(user_id=current_user.id).filter(
+                (Book.title.contains(query)) | (Book.author.contains(query))
+            ).all()
+        else:
+            books = Book.query.filter_by(user_id=current_user.id).all()
     else:
-        books = Book.query.all()
-    return render_template('index.html', books=books, query=query)
+        books = []
+        
+    return render_template('index.html', books=books, query=request.args.get('q'))
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
@@ -115,7 +123,7 @@ def add():
             if uploaded_url:
                 cover_url = uploaded_url
         
-        new_book = Book(title=title, author=author, cover_url=cover_url)
+        new_book = Book(title=title, author=author, cover_url=cover_url, owner=current_user)
         db.session.add(new_book)
         db.session.commit()
         return redirect(url_for('index'))
@@ -125,6 +133,9 @@ def add():
 @login_required
 def edit(id):
     book = Book.query.get_or_404(id)
+    if book.owner != current_user:
+        abort(403)
+        
     if request.method == 'POST':
         book.title = request.form.get('title')
         book.author = request.form.get('author')
@@ -143,9 +154,22 @@ def edit(id):
 @login_required
 def delete(id):
     book = Book.query.get_or_404(id)
+    if book.owner != current_user:
+        abort(403)
+        
     db.session.delete(book)
     db.session.commit()
     return redirect(url_for('index'))
+
+# Temporary route to reset database
+@app.route('/reset_db')
+def reset_db():
+    try:
+        db.drop_all()
+        db.create_all()
+        return "Database reset successfully! All data has been cleared and schema updated."
+    except Exception as e:
+        return f"Error resetting database: {e}"
 
 if __name__ == '__main__':
     app.run(debug=True)
