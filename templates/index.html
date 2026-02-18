@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Personal Library</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body {
+            background-color: #f8f9fa;
+        }
+
+        .card {
+            transition: transform 0.2s;
+            border: none;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .card-img-top {
+            height: 300px;
+            object-fit: cover;
+            border-top-left-radius: 0.5rem;
+            border-top-right-radius: 0.5rem;
+        }
+
+        .navbar {
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+    </style>
+</head>
+
+<body>
+
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary mb-4">
+        <div class="container">
+            <a class="navbar-brand fw-bold" href="/"><i class="fas fa-book me-2"></i>My Personal Library</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="/">Home</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="row mb-4 align-items-center">
+            <div class="col-md-6">
+                <h1 class="display-6 fw-bold text-dark">My Books</h1>
+            </div>
+            <div class="col-md-6">
+                <form action="/" method="GET" class="d-flex gap-2">
+                    <input class="form-control" type="search" name="q" placeholder="Search by title or author..."
+                        aria-label="Search" value="{{ query if query else '' }}">
+                    <button class="btn btn-outline-primary" type="submit">Search</button>
+                    {% if query %}
+                    <a href="/" class="btn btn-outline-secondary">Reset</a>
+                    {% endif %}
+                </form>
+            </div>
+        </div>
+
+        <div class="d-grid gap-2 d-md-flex justify-content-md-end mb-4">
+            <a href="/add" class="btn btn-success btn-lg shadow-sm">
+                <i class="fas fa-plus me-2"></i>Add New Book
+            </a>
+        </div>
+
+        {% if books %}
+        <div class="row row-cols-1 row-cols-md-3 g-4">
+            {% for book in books %}
+            <div class="col">
+                <div class="card h-100">
+                    {% if book.cover_url %}
+                    <img src="{{ book.cover_url }}" class="card-img-top" alt="{{ book.title }}">
+                    {% else %}
+                    <div class="card-img-top d-flex align-items-center justify-content-center bg-light text-muted">
+                        <i class="fas fa-book fa-3x"></i>
+                    </div>
+                    {% endif %}
+                    <div class="card-body">
+                        <h5 class="card-title fw-bold text-primary">{{ book.title }}</h5>
+                        <p class="card-text text-secondary">by {{ book.author }}</p>
+                    </div>
+                    <div class="card-footer bg-white border-top-0 d-flex justify-content-between">
+                        <a href="/edit/{{ book.id }}" class="btn btn-outline-warning btn-sm"><i class="fas fa-edit"></i>
+                            Edit</a>
+                        <form action="/delete/{{ book.id }}" method="POST"
+                            onsubmit="return confirm('Are you sure you want to delete this book?');">
+                            <button type="submit" class="btn btn-outline-danger btn-sm"><i class="fas fa-trash"></i>
+                                Delete</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="col-12 text-center py-5">
+            <h3 class="text-muted">No books found.</h3>
+            {% if query %}
+            <p>Try a different search term or <a href="/">view all books</a>.</p>
+            {% else %}
+            <p>Start building your library by <a href="/add">adding a book</a>!</p>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+
+</html>
