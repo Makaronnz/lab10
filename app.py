@@ -24,7 +24,7 @@ class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(100), unique=True, nullable=False)
     password_hash = db.Column(db.String(200), nullable=False)
-    books = db.relationship('Book', backref='owner', lazy=True)
+    comics = db.relationship('Comic', backref='owner', lazy=True)
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -32,10 +32,11 @@ class User(UserMixin, db.Model):
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
 
-class Book(db.Model):
+class Comic(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(100), nullable=False)
     author = db.Column(db.String(100), nullable=False)
+    genre = db.Column(db.String(50)) # Added Genre
     cover_url = db.Column(db.String(500))
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
 
@@ -46,21 +47,34 @@ def load_user(user_id):
 with app.app_context():
     db.create_all()
 
+# Genres list
+GENRES = [
+    "Action", "Adventure", "Comedy", "Drama", "Fantasy", 
+    "Horror", "Mystery", "Romance", "Sci-Fi", "Slice of Life"
+]
+
 # Routes
 @app.route('/')
 def index():
     if current_user.is_authenticated:
         query = request.args.get('q')
-        if query:
-            books = Book.query.filter_by(user_id=current_user.id).filter(
-                (Book.title.contains(query)) | (Book.author.contains(query))
-            ).all()
-        else:
-            books = Book.query.filter_by(user_id=current_user.id).all()
-    else:
-        books = []
+        genre_filter = request.args.get('genre')
         
-    return render_template('index.html', books=books, query=request.args.get('q'))
+        sql_query = Comic.query.filter_by(user_id=current_user.id)
+        
+        if query:
+            sql_query = sql_query.filter(
+                (Comic.title.contains(query)) | (Comic.author.contains(query))
+            )
+            
+        if genre_filter and genre_filter in GENRES:
+            sql_query = sql_query.filter_by(genre=genre_filter)
+            
+        comics = sql_query.all()
+    else:
+        comics = []
+        
+    return render_template('index.html', comics=comics, query=request.args.get('q'), genres=GENRES, current_genre=request.args.get('genre'))
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
@@ -114,7 +128,8 @@ def logout():
 def add():
     if request.method == 'POST':
         title = request.form.get('title')
-        author = request.form.get('author')
+        author = request.form.get('author') # Keeping 'author' but contextually it matches 'Creator/Author'
+        genre = request.form.get('genre')
         file = request.files.get('cover_image')
         
         cover_url = None
@@ -123,41 +138,42 @@ def add():
             if uploaded_url:
                 cover_url = uploaded_url
         
-        new_book = Book(title=title, author=author, cover_url=cover_url, owner=current_user)
-        db.session.add(new_book)
+        new_comic = Comic(title=title, author=author, genre=genre, cover_url=cover_url, owner=current_user)
+        db.session.add(new_comic)
         db.session.commit()
         return redirect(url_for('index'))
-    return render_template('add.html')
+    return render_template('add.html', genres=GENRES)
 
 @app.route('/edit/<int:id>', methods=['GET', 'POST'])
 @login_required
 def edit(id):
-    book = Book.query.get_or_404(id)
-    if book.owner != current_user:
+    comic = Comic.query.get_or_404(id)
+    if comic.owner != current_user:
         abort(403)
         
     if request.method == 'POST':
-        book.title = request.form.get('title')
-        book.author = request.form.get('author')
+        comic.title = request.form.get('title')
+        comic.author = request.form.get('author')
+        comic.genre = request.form.get('genre')
         file = request.files.get('cover_image')
         
         if file and file.filename != '':
             uploaded_url = upload_file_to_azure(file)
             if uploaded_url:
-                book.cover_url = uploaded_url
+                comic.cover_url = uploaded_url
                 
         db.session.commit()
         return redirect(url_for('index'))
-    return render_template('edit.html', book=book)
+    return render_template('edit.html', comic=comic, genres=GENRES)
 
 @app.route('/delete/<int:id>', methods=['POST'])
 @login_required
 def delete(id):
-    book = Book.query.get_or_404(id)
-    if book.owner != current_user:
+    comic = Comic.query.get_or_404(id)
+    if comic.owner != current_user:
         abort(403)
         
-    db.session.delete(book)
+    db.session.delete(comic)
     db.session.commit()
     return redirect(url_for('index'))
 
@@ -167,7 +183,7 @@ def reset_db():
     try:
         db.drop_all()
         db.create_all()
-        return "Database reset successfully! All data has been cleared and schema updated."
+        return "Database reset successfully! All data has been cleared and schema updated (Comics & Genres)."
     except Exception as e:
         return f"Error resetting database: {e}"
 
